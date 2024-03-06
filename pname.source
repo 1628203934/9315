@@ -1,68 +1,74 @@
-CREATE FUNCTION pname_in(text) RETURNS pname
+CREATE FUNCTION pname_in(text) RETURNS PersonName
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION pname_out(pname) RETURNS text
+CREATE FUNCTION pname_out(PersonName) RETURNS text
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
 
-CREATE TYPE pname (
-   input = pname_in,
-   output = pname_out
+CREATE TYPE PersonName (
+    internallength = variable,
+    input = pname_in,
+    output = pname_out
 );
 
-CREATE FUNCTION pname_lt(pname, pname) RETURNS bool
+CREATE FUNCTION pname_lt(PersonName, PersonName) RETURNS bool
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
-CREATE FUNCTION pname_le(pname, pname) RETURNS bool
+
+CREATE FUNCTION pname_le(PersonName, PersonName) RETURNS bool
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
-CREATE FUNCTION pname_eq(pname, pname) RETURNS bool
+
+CREATE FUNCTION pname_eq(PersonName, PersonName) RETURNS bool
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
-CREATE FUNCTION pname_ne(pname, pname) RETURNS bool
+
+CREATE FUNCTION pname_ne(PersonName, PersonName) RETURNS bool
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
-CREATE FUNCTION pname_ge(pname, pname) RETURNS bool
+
+CREATE FUNCTION pname_ge(PersonName, PersonName) RETURNS bool
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
-CREATE FUNCTION pname_gt(pname, pname) RETURNS bool
+
+CREATE FUNCTION pname_gt(PersonName, PersonName) RETURNS bool
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
 
 CREATE OPERATOR < (
-   leftarg = pname, rightarg = pname, procedure = pname_lt,
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_lt,
    commutator = > , negator = >= ,
    restrict = scalarltsel, join = scalarltjoinsel
 );
 
 CREATE OPERATOR <= (
-   leftarg = pname, rightarg = pname, procedure = pname_lt,
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_le,
    commutator = >= , negator = > ,
    restrict = scalarlesel, join = scalarlejoinsel
 );
 
 CREATE OPERATOR = (
-   leftarg = pname, rightarg = pname, procedure = pname_eq,
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_eq,
    commutator = = , negator = <> ,
    restrict = eqsel, join = eqjoinsel
 );
 
 CREATE OPERATOR <> (
-   leftarg = pname, rightarg = pname, procedure = pname_ne,
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_ne,
    commutator = <> , negator = = ,
    restrict = eqsel, join = eqjoinsel
 );
 
 CREATE OPERATOR >= (
-   leftarg = pname, rightarg = pname, procedure = pname_ge,
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_ge,
    commutator = <= , negator = < ,
    restrict = scalargesel, join = scalargejoinsel
 );
 
 CREATE OPERATOR > (
-   leftarg = pname, rightarg = pname, procedure = pname_gt,
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_gt,
    commutator = < , negator = <= ,
    restrict = scalargtsel, join = scalargtjoinsel
 );
 
-CREATE FUNCTION family(pname) RETURNS text
+CREATE FUNCTION family(PersonName) RETURNS text
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION given(pname) RETURNS text
+CREATE FUNCTION given(PersonName) RETURNS text
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION show(pname) RETURNS text
+CREATE FUNCTION show(PersonName) RETURNS text
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;

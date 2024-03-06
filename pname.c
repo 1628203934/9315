@@ -1,6 +1,7 @@
 #include "postgres.h"
 #include "fmgr.h"
 #include "utils/builtins.h"
+#include "lib/stringinfo.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -8,16 +9,20 @@
 
 PG_MODULE_MAGIC;
 
+bool is_valid_name(char* name);
+static int name_is_equal(char* a, char* b);
 // PersonName definition
-typedef struct Pname
+typedef struct PersonName
 {
     text *family;
     text *given;
-} Pname;
+} PersonName;
 
 bool is_valid_name(char* name) {
-    char *temp = strdup(name);
-    size_t len = strlen(name);
+    char* temp;
+    temp = pstrdup(name);
+    size_t len;
+    len = strlen(name);
     if (name[len - 1] == ' ' || len <= 1 || !isupper(name[0])) return false;
     for (int i = 1; i < len; i++) {
         if (!(isalpha(name[i]) || name[i] == '-' || name[i] == '\'' || name[i] == ' ') || (name[i] == ' ' && name[i + 1] == ' ')) return false;
@@ -38,29 +43,31 @@ PG_FUNCTION_INFO_V1(pname_in);
 Datum
 pname_in(PG_FUNCTION_ARGS)
 {
-    text *input_text = PG_GETARG_TEXT_PP(0);
-    char *str = text_to_cstring(input_text);
+    char *str = PG_GETARG_CSTRING(0);
+    char *str_dup = pstrdup(str);
     char *comma = strchr(str, ',');
     // check validity of person name: 1. no comma 2. multiple commas 3. no family name 4. no given name 5. too many spaces after comma
     if (!comma || strchr(comma + 1, ',') || comma == str || *(comma + 1) == '\0' || *(comma + 2) == ' ')
         ereport(ERROR,
-            (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                errmsg("Incorrect name")));
+                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                        errmsg("Incorrect name")));
     // separate person name into family and given names
-    char *family = strtok(str, ",");
-    char *given = strtok(NULL, ",");
+    char *family;
+    char *given;
+    family = strtok(str, ",");
+    given = strtok(NULL, ",");
     if (*(comma + 1) == ' ') given = comma + 2;
     if (given == NULL)
         ereport(ERROR,
-           (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                   errmsg("Incorrect name")));
+                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                        errmsg("Incorrect name")));
     // check validity of family and given names respectively
     if (!(is_valid_name(family) && is_valid_name(given)))
         ereport(ERROR,
                 (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
                         errmsg("Incorrect name")));
     // store two names using self-defined structure Pname
-    Pname *input = (Pname *) palloc(sizeof(Pname));
+    PersonName *input = (PersonName *) palloc(sizeof(PersonName));
     input->family = cstring_to_text(family);
     input->given = cstring_to_text(given);
     PG_RETURN_POINTER(input);
@@ -71,23 +78,18 @@ PG_FUNCTION_INFO_V1(pname_out);
 Datum
 pname_out(PG_FUNCTION_ARGS)
 {
-    Pname *pname = (Pname *) PG_GETARG_POINTER(0);
-    char *output;
+    PersonName *pname = (PersonName *) PG_GETARG_POINTER(0);
+    text *output;
     char *family = text_to_cstring(pname->family);
     char *given = text_to_cstring(pname->given);
 
     StringInfoData str;
     initStringInfo(&str);
     appendStringInfo(&str, "%s, %s", family, given);
-    text *output = cstring_to_text(str.data);
-
-    pfree(str.data);
-    pfree(family);
-    pfree(given);
-    PG_RETURN_TEXT_P(output);
+    PG_RETURN_CSTRING(str.data);
 }
 
-int name_is_equal (char *a, char *b) {
+static int name_is_equal (char *a, char *b) {
     for (int i = 0; i < (strlen(a) > strlen(b) ? strlen(b) : strlen(a)); i++) {
         if (a[i] > b[i]) {
             return 1;
@@ -105,7 +107,7 @@ int name_is_equal (char *a, char *b) {
 }
 
 static int
-pname_cmp_internal(Pname *a, Pname *b)
+pname_cmp_internal(PersonName *a, PersonName *b)
 {
     char *f_a = text_to_cstring(a->family);
     char *g_a = text_to_cstring(a->given);
@@ -127,8 +129,8 @@ PG_FUNCTION_INFO_V1(pname_lt);
 Datum
 pname_lt(PG_FUNCTION_ARGS)
 {
-    Pname *a = (Pname *) PG_GETARG_POINTER(0);
-    Pname *b = (Pname *) PG_GETARG_POINTER(1);
+    PersonName *a = (PersonName *) PG_GETARG_POINTER(0);
+    PersonName *b = (PersonName *) PG_GETARG_POINTER(1);
 
     PG_RETURN_BOOL(pname_cmp_internal(a, b) < 0);
 }
@@ -138,8 +140,8 @@ PG_FUNCTION_INFO_V1(pname_le);
 Datum
 pname_le(PG_FUNCTION_ARGS)
 {
-    Pname *a = (Pname *) PG_GETARG_POINTER(0);
-    Pname *b = (Pname *) PG_GETARG_POINTER(1);
+    PersonName *a = (PersonName *) PG_GETARG_POINTER(0);
+    PersonName *b = (PersonName *) PG_GETARG_POINTER(1);
 
     PG_RETURN_BOOL(pname_cmp_internal(a, b) <= 0);
 }
@@ -149,8 +151,8 @@ PG_FUNCTION_INFO_V1(pname_eq);
 Datum
 pname_eq(PG_FUNCTION_ARGS)
 {
-    Pname *a = (Pname *) PG_GETARG_POINTER(0);
-    Pname *b = (Pname *) PG_GETARG_POINTER(1);
+    PersonName *a = (PersonName *) PG_GETARG_POINTER(0);
+    PersonName *b = (PersonName *) PG_GETARG_POINTER(1);
 
     PG_RETURN_BOOL(pname_cmp_internal(a, b) == 0);
 }
@@ -160,8 +162,8 @@ PG_FUNCTION_INFO_V1(pname_ne);
 Datum
 pname_ne(PG_FUNCTION_ARGS)
 {
-    Pname *a = (Pname *) PG_GETARG_POINTER(0);
-    Pname *b = (Pname *) PG_GETARG_POINTER(1);
+    PersonName *a = (PersonName *) PG_GETARG_POINTER(0);
+    PersonName *b = (PersonName *) PG_GETARG_POINTER(1);
 
     PG_RETURN_BOOL(pname_cmp_internal(a, b) != 0);
 }
@@ -171,8 +173,8 @@ PG_FUNCTION_INFO_V1(pname_ge);
 Datum
 pname_ge(PG_FUNCTION_ARGS)
 {
-    Pname *a = (Pname *) PG_GETARG_POINTER(0);
-    Pname *b = (Pname *) PG_GETARG_POINTER(1);
+    PersonName *a = (PersonName *) PG_GETARG_POINTER(0);
+    PersonName *b = (PersonName *) PG_GETARG_POINTER(1);
 
     PG_RETURN_BOOL(pname_cmp_internal(a, b) >= 0);
 }
@@ -182,41 +184,43 @@ PG_FUNCTION_INFO_V1(pname_gt);
 Datum
 pname_gt(PG_FUNCTION_ARGS)
 {
-    Pname *a = (Pname *) PG_GETARG_POINTER(0);
-    Pname *b = (Pname *) PG_GETARG_POINTER(1);
+    PersonName *a = (PersonName *) PG_GETARG_POINTER(0);
+    PersonName *b = (PersonName *) PG_GETARG_POINTER(1);
 
     PG_RETURN_BOOL(pname_cmp_internal(a, b) > 0);
 }
 
-PG_FUNCTION_INFO_V1(pname_family);
+PG_FUNCTION_INFO_V1(family);
 
 Datum
-pname_family(PG_FUNCTION_ARGS)
+family(PG_FUNCTION_ARGS)
 {
-    Pname *pname = (Pname *) PG_GETARG_POINTER(0);
+    PersonName *pname = (PersonName *) PG_GETARG_POINTER(0);
     PG_RETURN_TEXT_P(pname->family);
 }
 
-PG_FUNCTION_INFO_V1(pname_given);
+PG_FUNCTION_INFO_V1(given);
 
 Datum
-pname_given(PG_FUNCTION_ARGS)
+given(PG_FUNCTION_ARGS)
 {
-    Pname *pname = (Pname *) PG_GETARG_POINTER(0);
+    PersonName *pname = (PersonName *) PG_GETARG_POINTER(0);
     PG_RETURN_TEXT_P(pname->given);
 }
 
-PG_FUNCTION_INFO_V1(pname_full);
+PG_FUNCTION_INFO_V1(show);
 
 Datum
-pname_full(PG_FUNCTION_ARGS)
+show(PG_FUNCTION_ARGS)
 {
-    Pname *pname = (Pname *) PG_GETARG_POINTER(0);
+    PersonName *pname = (PersonName *) PG_GETARG_POINTER(0);
     char* family = text_to_cstring(pname->family);
     char* given = text_to_cstring(pname->given);
     char* first_given = strtok(given, " ");
-    char *fullname = palloc(strlen(first_given) + strlen(family) + 2);
-    snprintf(fullname, "%s %s", first_given, family);
-    text *result = cstring_to_text(fullname);
+    int result_len = strlen(first_given) + strlen(family) + 2;
+    char *fullname = palloc(result_len);
+    text *result;
+    snprintf(fullname, result_len, "%s %s", first_given, family);
+    result = cstring_to_text(fullname);
     PG_RETURN_TEXT_P(result);
 }
