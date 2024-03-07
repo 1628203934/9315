@@ -50,12 +50,10 @@ pname_in(PG_FUNCTION_ARGS)
     if (!comma || strchr(comma + 1, ',') || comma == str || *(comma + 1) == '\0' || *(comma + 2) == ' ')
         ereport(ERROR,
                 (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                        errmsg("Incorrect name")));
+                        errmsg("invalid input syntax for type PersonName: \"%s\"", strdup)));
     // separate person name into family and given names
-    char *family;
-    char *given;
-    family = strtok(str, ",");
-    given = strtok(NULL, ",");
+    char *family = strtok(str_dup, ",");
+    char *given = strtok(NULL, ",");
     if (*(comma + 1) == ' ') given = comma + 2;
     if (given == NULL)
         ereport(ERROR,
@@ -79,14 +77,10 @@ Datum
 pname_out(PG_FUNCTION_ARGS)
 {
     PersonName *pname = (PersonName *) PG_GETARG_POINTER(0);
-    text *output;
     char *family = text_to_cstring(pname->family);
     char *given = text_to_cstring(pname->given);
-
-    StringInfoData str;
-    initStringInfo(&str);
-    appendStringInfo(&str, "%s, %s", family, given);
-    PG_RETURN_CSTRING(str.data);
+    char *output = psprintf("%s, %s", family, given);
+    PG_RETURN_CSTRING(output);
 }
 
 static int name_is_equal (char *a, char *b) {

@@ -1,7 +1,7 @@
-CREATE FUNCTION pname_in(text) RETURNS PersonName
+CREATE FUNCTION pname_in(cstring) RETURNS PersonName
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION pname_out(PersonName) RETURNS text
+CREATE FUNCTION pname_out(PersonName) RETURNS cstring
    AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
 
 CREATE TYPE PersonName (
